@@ -1,0 +1,282 @@
+---
+title: "Comparing Survivability of Different Tank Builds in Dungeons & Dragons (work in progress)"
+author: "Daniel K Baissa"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load the ggplot2 package
+library(tidyverse)
+```
+
+
+## Objective
+
+In this analysis, my primary aim is to explore and compare the survivability of various tank character builds in Dungeons & Dragons (D&D) 5th Edition. I'm particularly interested in two key aspects of these builds: Armor Class (AC) and Hit Points (HP). AC indicates a character's ability to evade attacks, whereas HP signifies the amount of damage a character can sustain before falling unconscious.
+
+In D&D, tanks often form the front line of the party, soaking up damage and keeping enemies occupied. Their performance can significantly influence the party's success, so understanding which builds yield the most survivability can greatly aid in strategizing for the game.
+
+One intriguing case is the Bladesinger, a Wizard subclass known for its unusual ability to serve as a frontline fighter despite its relatively low HP. Thanks to their high AC and various defensive spells, Bladesingers can hold their own in battle. The question I want to answer is: can a Bladesinger match the durability of more traditional tanks?
+
+## Approach
+
+To investigate this, I'm using R to simulate thousands of combat rounds for each tank build, including the Bladesinger. Each round of combat involves the tank being attacked by a simulated monster. The monster's attacks take into account factors like its "to hit" bonus, the tank's AC, and any disadvantage that might be imposed on the attack.
+
+I'm running these combat scenarios multiple times, calculating the average number of rounds that each tank build survives. This provides a robust estimate of their relative survivability.
+
+By comparing these averages, I hope to understand the relative importance of AC and HP for a tank's survivability and assess how well a Bladesinger can stand up to combat compared to traditional tank builds.
+
+## Caveats
+
+It's important to note that these simulations are a simplification of the intricate and multifaceted combat system of D&D. They do not account for elements like saving throws, abilities, spells, or tactical decisions. As such, they should be viewed as a general guide rather than an absolute measure of a character's effectiveness. The most optimal character build often depends on the specific circumstances of a campaign and the composition and strategy of the party.
+
+
+
+## Setting up the Code
+
+Here, I'm setting up a function to simulate a single attack. It considers factors like the attacker's "to hit" bonus, the defender's Armor Class (AC), and whether the attacker has disadvantage on their roll.
+
+```{r}
+# Function to simulate a single attack
+simulate_attack <- function(to_hit, target_ac, disadvantage = FALSE) {
+  # Draw two random numbers from 1 to 20 if disadvantage is TRUE, one otherwise
+  rolls <- sample(1:20, ifelse(disadvantage, 2, 1))
+  
+  # If disadvantage is TRUE, take the lower roll, otherwise take the roll
+  roll <- ifelse(disadvantage, min(rolls), rolls)
+  
+  # Check for natural 20 (if not at disadvantage)
+  if (roll == 20 & !disadvantage) {
+    return(list('result' = TRUE, 'message' = "Critical hit!"))
+  }
+  
+  # Add the "to hit" bonus
+  total <- roll + to_hit
+  
+  # Return TRUE if the total is greater than the target's AC, FALSE otherwise
+  if(total >= target_ac) {
+    return(list('result' = TRUE, 'message' = "Hit!"))
+  } else {
+    return(list('result' = FALSE, 'message' = "Miss!"))
+  }
+}
+```
+
+Now, I'm testing the attack simulation function. I've set up parameters for the attacker's "to hit" bonus, the defender's AC, and whether the attacker has disadvantage on their attack. Running this code simulates a single attack and prints out the result.
+
+```{r}
+# Define "to hit" bonus, target's AC, and whether the attacker has disadvantage
+to_hit <- 5
+target_ac <- 15
+disadvantage <- TRUE
+
+# Use the function to simulate an attack
+attack_result <- simulate_attack(to_hit, target_ac, disadvantage)
+
+# Print the result
+print(attack_result$message)
+```
+
+## Now to Simulate the Battle:
+
+This function simulates a whole battle by repeatedly calling the attack simulation function until the defender's HP drops to zero. The function takes into account the defender's AC, the attacker's "to hit" bonus and damage per hit, whether the attacker has disadvantage, and the number of attacks the attacker gets each round.
+
+```{r}
+# Function to simulate a battle
+simulate_battle <- function(to_hit, target_ac, disadvantage, damage, target_hp, attacks_per_round) {
+  # Initialize round counter
+  rounds_survived <- 0
+  
+  # Loop until target is defeated
+  while(target_hp > 0) {
+    # Loop for each attack per round
+    for(i in 1:attacks_per_round) {
+      # Simulate an attack
+      attack_result <- simulate_attack(to_hit, target_ac, disadvantage)
+      
+      # If the attack hit, subtract damage from target's HP
+      if (attack_result$result) {
+        target_hp <- target_hp - damage
+      }
+      
+      # If target is defeated, break out of the loop
+      if(target_hp <= 0) {
+        break
+      }
+    }
+    
+    # Increment round counter
+    rounds_survived <- rounds_survived + 1
+  }
+  
+  # Return number of rounds survived
+  return(rounds_survived)
+}
+```
+
+### Testing it:
+
+Next, I'm testing the battle simulation function. I've set parameters for the attacker's "to hit" bonus, damage per hit, and the number of attacks per round, as well as the defender's AC and HP. Running this code simulates a whole battle and prints out the number of rounds the defender survived.
+
+```{r}
+# Define "to hit" bonus, target's AC, whether the attacker has disadvantage, damage, target's HP, and attacks per round
+to_hit <- 5
+target_ac <- 15
+disadvantage <- TRUE
+damage <- 6
+target_hp <- 50
+attacks_per_round <- 2
+
+# Use the function to simulate a battle
+rounds_survived <- simulate_battle(to_hit, target_ac, disadvantage, damage, target_hp, attacks_per_round)
+
+# Print the result
+print(paste("The tank survived for", rounds_survived, "rounds."))
+```
+
+## Setting the Scene for the Tank Duel
+
+For this test, I'm using a Young White Dragon as my standardized attacker. I'm estimating the dragon uses its ***Claw attack three times per round*** for the sake of simplicity. The Claw attack has an ***expected damage of 11***.
+
+My first contestant is the Half-Orc Barbarian, often touted as the epitome of a tank. With an ***Armor Class (AC) of 18*** and ***60 Hit Points (HP)***, they are a force to be reckoned with.
+
+### Coding the Parameters: 
+
+```{r}
+# Define "to hit" bonus, target's AC, whether the attacker has disadvantage, damage, target's HP, and attacks per round
+to_hit <- 7
+target_ac <- 18
+disadvantage <- FALSE
+damage <- 11
+target_hp <- 60
+attacks_per_round <- 3
+```
+
+### Simulating Battles:
+
+Here, I'm running 30,000 simulations of battles between the Half-Orc Barbarian and the Young White Dragon. I then create a histogram to visualize the distribution of the number of rounds the Barbarian survived in these battles.
+
+```{r}
+# Number of simulations to run
+n_simulations <- 30000
+
+# Run simulations
+results <- replicate(n_simulations, simulate_battle(to_hit, target_ac, disadvantage, damage, target_hp, attacks_per_round))
+
+# Calculate average number of rounds survived
+median_rounds  <- median(results)
+
+# Create a data frame with the results
+results_df <- data.frame(RoundsSurvived = results)
+
+# Create the plot
+ggplot(results_df, aes(x=RoundsSurvived)) +
+  geom_histogram(binwidth=1, color="black", fill="lightblue") +
+  theme_minimal() +
+  labs(
+    title="Distribution of Rounds Survived: Half-Orc Barbarian",
+    subtitle=paste("Median number of rounds the tank survived:", round(median_rounds , 2)),
+    x="Rounds Survived", 
+    y="Count"
+  )
+```
+
+## Testing the Bladesinger
+
+The Bladesinger is a unique case. Despite having a high ***AC of 24***, they have lower ***HP at 37***. However, they can also ***impose disadvantage*** on attacks against them, potentially allowing them to dodge a lot of incoming damage.
+
+### Coding the Parameters: 
+
+
+```{r}
+# Define "to hit" bonus, target's AC, whether the attacker has disadvantage, damage, target's HP, and attacks per round
+to_hit <- 7
+target_ac <- 24
+disadvantage <- TRUE
+damage <- 11
+target_hp <- 37
+attacks_per_round <- 3
+
+```
+
+### Simulating Battles:
+
+I'm running 30,000 simulations of battles between the Bladesinger and the Young White Dragon. I then create a histogram to visualize the distribution of the number of rounds the Bladesinger survived in these battles.
+
+```{r}
+# Number of simulations to run
+n_simulations <- 30000
+
+# Run simulations
+results <- replicate(n_simulations, simulate_battle(to_hit, target_ac, disadvantage, damage, target_hp, attacks_per_round))
+
+# Calculate average number of rounds survived
+median_rounds  <- median(results)
+
+# Create a data frame with the results
+results_df <- data.frame(RoundsSurvived = results)
+
+# Create the plot
+ggplot(results_df, aes(x=RoundsSurvived)) +
+  geom_histogram(binwidth=1, color="black", fill="lightblue") +
+  theme_minimal() +
+  labs(
+    title="Distribution of Rounds Survived: Bladesinger",
+    subtitle=paste("Median number of rounds the tank survived:", round(median_rounds , 2)),
+    x="Rounds Survived", 
+    y="Count"
+  )
+
+```
+
+Bladesinger survived ***Way*** Longer than I expected.
+
+# Testing the Battle Smith
+
+The Battle Smith is a unique tank build from the Artificer class. With an ***Armor Class (AC) of 23***, a solid ***HP pool of 53***, and the ability to ***impose disadvantage*** on attacks, they present a unique blend of the strengths of the previous two builds.
+
+### Coding the Parameters: 
+
+```{r}
+# Define "to hit" bonus, target's AC, whether the attacker has disadvantage, damage, target's HP, and attacks per round
+to_hit <- 7
+target_ac <- 23
+disadvantage <- TRUE
+damage <- 11
+target_hp <- 53
+attacks_per_round <- 3
+
+```
+
+### Simulating Battles:
+
+Finally, I'm running 30,000 simulations of battles between the Battle Smith and the Young White Dragon. I then create a histogram to visualize the distribution of the number of rounds the Battle Smith survived in these battles.
+
+```{r}
+# Number of simulations to run
+n_simulations <- 30000
+
+# Run simulations
+results <- replicate(n_simulations, simulate_battle(to_hit, target_ac, disadvantage, damage, target_hp, attacks_per_round))
+
+# Calculate average number of rounds survived
+median_rounds  <- median(results)
+
+# Create a data frame with the results
+results_df <- data.frame(RoundsSurvived = results)
+
+# Create the plot
+ggplot(results_df, aes(x=RoundsSurvived)) +
+  geom_histogram(binwidth=1, color="black", fill="lightblue") +
+  theme_minimal() +
+  labs(
+    title="Distribution of Rounds Survived: Battle Smith",
+    subtitle=paste("Median number of rounds the tank survived:", round(median_rounds , 2)),
+    x="Rounds Survived", 
+    y="Count"
+  )
+
+```
