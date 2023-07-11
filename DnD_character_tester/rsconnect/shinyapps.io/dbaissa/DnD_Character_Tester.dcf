@@ -1,0 +1,13 @@
+name: DnD_Character_Tester
+title: DnD_Character_Tester
+username:
+account: dbaissa
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 9438707
+bundleId: 7442886
+url: https://dbaissa.shinyapps.io/DnD_Character_Tester/
+when: 1689055781.70127
+lastSyncTime: 1689055781.70128
+asMultiple: FALSE
+asStatic: FALSE
