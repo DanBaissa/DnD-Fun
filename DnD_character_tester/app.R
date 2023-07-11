@@ -66,18 +66,13 @@ simulate_battle <- function(to_hit, target_ac, disadvantage, damage, target_hp, 
   return(rounds_survived)
 }
 
-
-
-# Function to simulate damage output
-simulate_damage <- function(to_hit, target_ac, disadvantage, damage, attacks_per_round, rounds) {
+simulate_damage <- function(to_hit, target_ac, disadvantage, damage, attacks_per_round, target_hp) {
   # Initialize total damage dealt
   total_damage <- 0
+  rounds_survived <- 0
   
-    rounds_survived <- 0
-    
- # Loop until target is defeated
+  # Loop until target is defeated
   while(target_hp > 0) {
-    
     # Loop for each attack per round
     for(j in 1:attacks_per_round) {
       # Simulate an attack
@@ -86,7 +81,12 @@ simulate_damage <- function(to_hit, target_ac, disadvantage, damage, attacks_per
       # If the attack hit, add damage to total damage
       if (attack_result > target_ac) {
         total_damage <- total_damage + damage
-        target_hp <- target_hp - damage
+        target_hp <- target_hp - damage  # Decrease target_hp with each successful hit
+      }
+      
+      # If target is defeated, break out of the loop
+      if(target_hp <= 0) {
+        break
       }
     }
     # Increment round counter
@@ -98,10 +98,11 @@ simulate_damage <- function(to_hit, target_ac, disadvantage, damage, attacks_per
 }
 
 
+
 # Function to generate survivability plot
 create_survivability_plot <- function(results_df, median_rounds) {
   ggplot(results_df, aes(x=RoundsSurvived)) +
-    geom_histogram(binwidth=1, color="black", fill="lightblue") +
+    geom_histogram(binwidth=1, color= "#5c1623", fill="#808080") +
     theme_minimal() +
     labs(
       title="Distribution of Rounds Survived",
@@ -114,7 +115,7 @@ create_survivability_plot <- function(results_df, median_rounds) {
 # Function to generate damage output plot
 create_damage_plot <- function(results_df, median_damage) {
   ggplot(results_df, aes(x=TotalDamage)) +
-    geom_histogram(binwidth=1, color="black", fill="lightblue") +
+    geom_histogram(binwidth=1, color="#5c1623", fill="#808080") +
     theme_minimal() +
     labs(
       title="Distribution of Rounds to defeat Target",
@@ -136,20 +137,22 @@ ui <- fluidPage(
       .well { background-color: #808080; border-color: #5c1623; color: #FFFFFF; }
     "))
   ),
-  navbarPage(theme = shinytheme("cerulean"),  # Using "cerulean" as base theme
-             title = "D&D Character Tester",
+  navbarPage(title = "D&D Character Tester",
              
              # The home tab
              tabPanel("Home", 
-                      h1("D&D Character Tester"),
-                      p("In this shiny app, you can test the survivability and damage output of your Dungeons & Dragons (D&D) characters.")
+                      h1("Welcome to the D&D Character Tester App"),
+                      p("This shiny app is designed to help Dungeons & Dragons (D&D) players test the survivability and damage output of their characters. Through a series of simulations based on the combat mechanics of D&D, the app provides a statistical analysis of how different characters might perform in combat scenarios."),
+                      p("In the Survivability tab, you can specify your character's attributes (such as Armor Class and Hit Points), as well as the attributes of up to three different monsters. The app will then simulate numerous rounds of combat and visualize the distribution of rounds your character survives."),
+                      p("In the Damage Output tab, you can specify your character's attack attributes (such as to hit bonus and damage per hit), as well as the Armor Class and Hit Points of a target. The app will then simulate a set number of rounds and visualize the distribution of damage dealt by your character."),
+                      p("The app also includes an Explanation tab, which provides a detailed explanation of the math behind the simulations.")
              ),
              
              # The survivability tab
              tabPanel("Survivability",
                       fluidRow(
-                        column(3, numericInput("target_ac", "Target AC", 15)),
-                        column(3, numericInput("target_hp", "Target HP", 50)),
+                        column(3, numericInput("target_ac", "Character AC", 15)),
+                        column(3, numericInput("target_hp", "Character HP", 50)),
                         column(3, numericInput("shield_spells", "Shield Spells", 2)),
                         column(3, sliderInput("n_sims", "Number of Simulations", min = 100, max = 5000, value = 1000))  
                       ),
@@ -216,8 +219,21 @@ ui <- fluidPage(
              # The explanation tab
              tabPanel("Explanation",
                       h1("Explanation"),
-                      p("Here, you can provide a more detailed explanation of the math behind your calculations.")
+                      p("The key mechanics of this app are attack and damage simulation, both of which are based on the combat mechanics in D&D."),
+                      h3("Attack Simulation"),
+                      p("Each simulated attack roll generates a random number between 1 and 20, representing a roll of a 20-sided die. If an attack is at disadvantage, the simulation generates two numbers and takes the lower one. The attack roll, plus the attacker's to hit bonus, is compared to the target's AC to determine if the attack hits."),
+                      h3("Disadvantage"),
+                      p("Disadvantage, a core mechanic in D&D, is represented in this app by taking the lower of two randomly generated numbers. This makes the attacker less likely to hit."),
+                      h3("Battle Simulation"),
+                      p("The battle simulation calculates how long the character can survive against a monster's attacks. The monster attacks a certain number of times per round, dealing a certain amount of damage with each hit. The simulation runs until the character's HP reach 0."),
+                      h3("Shield Spell"),
+                      p("The shield spell, when activated, adds 5 to the character's AC. The shield activates if an attack would hit the character but miss if their AC were 5 higher. The shield stays active for the remainder of the round."),
+                      h3("Damage Simulation"),
+                      p("The damage simulation calculates the total damage the character can deal in a set number of rounds. If an attack hits, it deals a set amount of damage to the target."),
+                      h3("Histograms"),
+                      p("The app presents the results of the survivability and damage simulations as histograms, showing the distribution of outcomes across multiple simulations. This allows you to see not just the average result, but the spread of possible outcomes.")
              )
+             
   )
 )
 
@@ -250,11 +266,12 @@ server <- function(input, output) {
   
   # Observing damage simulation input
   observeEvent(input$dmg_sim, { 
-    total_damage <- replicate(input$n_sims, isolate(simulate_damage(input$dmg_to_hit, input$dmg_target_ac, input$disadvantage1, input$dmg_damage, input$dmg_attacks_per_round, rounds = 10)))
+    total_damage <- replicate(input$n_sims, isolate(simulate_damage(input$dmg_to_hit, input$dmg_target_ac, input$disadvantage1, input$dmg_damage, input$dmg_attacks_per_round, input$dmg_target_hp)))
     results_df <- data.frame(TotalDamage = total_damage)
     median_damage <- median(results_df$TotalDamage)
     output$dmg_output <- renderPlot(create_damage_plot(results_df, median_damage))
   })
+  
   
 }
 
