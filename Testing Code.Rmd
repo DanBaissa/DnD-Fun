@@ -149,3 +149,70 @@ ggplot(results_df, aes(x=RoundsSurvived)) +
   )
 
 ```
+
+```{r}
+to_hit <- 7
+target_ac <- 13+3+3
+disadvantage <- TRUE
+damage <- 11
+target_hp <- 40
+attacks_per_round <- 3
+shield_spells <- 10
+
+
+
+# Function to simulate damage output
+simulate_damage <- function(to_hit, target_ac, disadvantage, damage, attacks_per_round, rounds) {
+  # Initialize total damage dealt
+  total_damage <- 0
+  
+    rounds_survived <- 0
+    
+ # Loop until target is defeated
+  while(target_hp > 0) {
+    
+    # Loop for each attack per round
+    for(j in 1:attacks_per_round) {
+      # Simulate an attack
+      attack_result <- simulate_attack(to_hit, target_ac, disadvantage)
+      
+      # If the attack hit, add damage to total damage
+      if (attack_result > target_ac) {
+        total_damage <- total_damage + damage
+        target_hp <- target_hp - damage
+      }
+    }
+    # Increment round counter
+    rounds_survived <- rounds_survived + 1
+  }
+  
+  # Return Target Rounds Survived
+  return(rounds_survived)
+}
+
+
+# Number of simulations to run
+n_simulations <- 30000
+
+# Run simulations
+results <- replicate(n_simulations,simulate_damage(to_hit, target_ac, disadvantage, damage, attacks_per_round, rounds))
+
+# Calculate average number of rounds survived
+median_rounds  <- median(results)
+
+# Create a data frame with the results
+results_df <- data.frame(RoundsSurvived = results)
+
+# Create the plot
+ggplot(results_df, aes(x=RoundsSurvived)) +
+  geom_histogram(binwidth=1, color="black", fill="lightblue") +
+  theme_minimal() +
+  labs(
+    title="Distribution of Rounds Survived",
+    subtitle=paste("Median number of rounds the target survived:", round(median_rounds , 2)),
+    x="Rounds Survived", 
+    y="Count"
+  )
+
+```
+
