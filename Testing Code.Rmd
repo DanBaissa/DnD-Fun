@@ -1,0 +1,151 @@
+---
+title: "Testing Code"
+author: "Daniel K Baissa"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Single Attack
+```{r}
+# Function to simulate a single attack
+simulate_attack <- function(to_hit, target_ac, disadvantage = FALSE) {
+  # Draw two random numbers from 1 to 20 if disadvantage is TRUE, one otherwise
+  rolls <- sample(1:20, ifelse(disadvantage, 2, 1))
+  
+  # If disadvantage is TRUE, take the lower roll, otherwise take the roll
+  roll <- ifelse(disadvantage, min(rolls), rolls)
+  
+  # Check for natural 20 (if not at disadvantage)
+  if (roll == 20 & !disadvantage) {
+    return(list('result' = TRUE, 'message' = "Critical hit!"))
+  }
+  
+  # Add the "to hit" bonus
+  total <- roll + to_hit
+  
+  # Return total if the total is greater than the target's AC, FALSE otherwise
+  return(total)
+}
+```
+
+```{r}
+
+to_hit <- 5
+target_ac <- 15
+disadvantage <- TRUE
+damage <- 6
+target_hp <- 50
+attacks_per_round <- 2
+shield_spells <- 0
+
+
+attack_result <- 15+6
+
+if (attack_result > target_ac & attack_result < 6 + target_ac){
+  print("test")
+}
+```
+
+
+
+## Simulate a Battle
+
+```{r}
+# Function to simulate a battle
+simulate_battle <- function(to_hit, target_ac, disadvantage, damage, target_hp, attacks_per_round, shield_spells) {
+  # Initialize round counter
+  rounds_survived <- 0
+  
+  # Loop until target is defeated
+  while(target_hp > 0) {
+    # Initialize shield status for the round
+    shield_active <- FALSE
+    
+    # Loop for each attack per round
+    for(i in 1:attacks_per_round) {
+
+      # Simulate an attack
+      attack_result <- simulate_attack(to_hit, ifelse(shield_active, target_ac + 5, target_ac), disadvantage)
+      
+      # Did the attack hit?
+      if (attack_result > target_ac & attack_result < 6 + target_ac){
+        
+        # Check if shield spell can be used
+        if(!shield_active && shield_spells > 0 ) {
+          shield_active <- TRUE
+          shield_spells <- shield_spells - 1
+        }
+      }
+      
+      # If the attack hit, subtract damage from target's HP
+      if (attack_result > ifelse(shield_active, target_ac + 5, target_ac)) {
+        target_hp <- target_hp - damage
+      }  # This was the missing closing brace
+      
+      # If target is defeated, break out of the loop
+      if(target_hp <= 0) {
+        break
+      }
+    }
+    
+    # Increment round counter
+    rounds_survived <- rounds_survived + 1
+  }
+  
+  # Return number of rounds survived
+  return(rounds_survived)
+}
+
+
+```
+
+```{r}
+# Define "to hit" bonus, target's AC, whether the attacker has disadvantage, damage, target's HP, and attacks per round
+to_hit <- 7
+target_ac <- 13+3+3
+disadvantage <- TRUE
+damage <- 11
+target_hp <- 40
+attacks_per_round <- 3
+shield_spells <- 10
+
+# Use the function to simulate a battle
+rounds_survived <- simulate_battle(to_hit, target_ac, disadvantage, damage, target_hp, attacks_per_round, shield_spells)
+
+# Print the result
+print(paste("The tank survived for", rounds_survived, "rounds."))
+```
+
+# Simulating Battles:
+
+
+
+```{r}
+# Number of simulations to run
+n_simulations <- 30000
+
+# Run simulations
+results <- replicate(n_simulations, simulate_battle(to_hit, target_ac, disadvantage, damage, target_hp, attacks_per_round, shield_spells))
+
+# Calculate average number of rounds survived
+median_rounds  <- median(results)
+
+# Create a data frame with the results
+results_df <- data.frame(RoundsSurvived = results)
+
+# Create the plot
+ggplot(results_df, aes(x=RoundsSurvived)) +
+  geom_histogram(binwidth=1, color="black", fill="lightblue") +
+  theme_minimal() +
+  labs(
+    title="Distribution of Rounds Survived",
+    subtitle=paste("Median number of rounds the tank survived:", round(median_rounds , 2)),
+    x="Rounds Survived", 
+    y="Count"
+  )
+
+```
